@@ -1,0 +1,360 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Convert Excel to HTML Table using JavaScript</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+</head>
+<body>
+    <div class="container">
+    	<h2 class="text-center mt-4 mb-4">Convert Excel to HTML Table using JavaScript</h2>
+    	<div class="card">
+    		<div class="card-header"><b>Select Excel File</b></div>
+    		<div class="card-body">
+    			
+                <input type="file" id="inputfile" />
+
+    		</div>
+    	</div>
+    </div>
+</body>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+
+<script>
+     var  list_name  = ""
+     var internal_list_name = "a"
+     fields = []
+    function create_table(fields){
+        var siteUrl = _spPageContextInfo.webAbsoluteUrl+ "/_api/web/lists";
+        $.ajax({
+        url: siteUrl,
+        type: "POST",
+        data: JSON.stringify({
+        '__metadata': { 'type': 'SP.List' },
+        'BaseTemplate': 100,
+        'Title': list_name
+        }),
+        headers: {
+        "accept": "application/json;odata=verbose",
+        "content-type": "application/json;odata=verbose",
+        "X-RequestDigest": $("#__REQUESTDIGEST").val()
+        },
+        success: onQuerySucceeded,
+        error: onQueryFailed
+        });
+
+
+        function onQuerySucceeded() {
+           get_internal("https://uatintranet.osfi-bsif.gc.ca/eng/Justintest3/_api/lists/GetByTitle" + "("+ "'"+ list_name+"'"+ ")")
+          updateColumn(fields)
+        //console.log(internal_list_name)
+            var count = 0
+            temp = []
+            for(var i = 0; i<(data.length/fields.length); i++){
+                start = i * fields.length
+                end = (i+1) * fields.length
+                //create_row (data.slice(start, end))
+                
+                
+            }
+        }
+
+        function onQueryFailed() {
+        alert('Error!');
+        }
+    }
+    function updateColumn(fields){
+        var siteUrl = _spPageContextInfo.webAbsoluteUrl;
+        var fullUrl = siteUrl + "/_api/web/lists/GetByTitle(" + "'" + list_name + "')/Fields/getbytitle('Title')";
+
+        $.ajax({
+            url: fullUrl,
+            type: "POST",
+            //data: "{ '__metadata': { type: 'SP.Field' }, 'Title':'test', 'FieldTypeKind': 1}",
+            data: JSON.stringify({__metadata:{type:"SP.FieldText"},"Title" : fields[0] }),
+            headers: {
+            "accept": "application/json;odata=verbose",
+            "content-type": "application/json;odata=verbose",
+            "X-RequestDigest": $("#__REQUESTDIGEST").val(),
+            "X-HTTP-Method": "PATCH"
+            },
+            success: onQuerySucceeded,
+            error: onQueryFailed
+        });
+        function onQuerySucceeded() {
+                createColumn(fields, 1, fields.length-1)
+                
+        }
+
+        function onQueryFailed() {
+        alert('Error!');
+        }
+    }
+    function createColumn(fields,index,max_length) {
+        var siteUrl = _spPageContextInfo.webAbsoluteUrl;
+        var fullUrl = siteUrl + "/_api/web/lists/GetByTitle("+ "'" + list_name+ "')/Fields";
+
+        if (index <= max_length){
+            console.log(max_length)
+
+            $.ajax({
+            url: fullUrl,
+            type: "POST",
+            data: "{ '__metadata': { 'type': 'SP.Field' }, 'Title':'" + fields[index] + "', 'FieldTypeKind': 3, 'Required': true}",
+            headers: {
+            "accept": "application/json;odata=verbose",
+            "content-type": "application/json;odata=verbose",
+            "X-RequestDigest": $("#__REQUESTDIGEST").val()
+            },
+            success: onQuerySucceeded,
+            error: onQueryFailed
+            });
+        }
+        else{
+
+            var regexp = /(.*)^[a-zA-Z]*/gm;
+
+            var matches 
+            var parameter = ""
+            for(var i = 0; i<fields.length;i++){
+                matches = fields[i].matchAll(regexp);
+                for (const match of matches){
+                    parameter = match[0]
+                }
+                
+                if (parameter.length != fields[i].length){ 
+                    get_internal_field("https://uatintranet.osfi-bsif.gc.ca/eng/Justintest3/_api/lists/GetByTitle" + "("+ "'"+ list_name+"'"+ ")" + '/fields?$select=internalname', parameter,i)
+                    
+                }
+                parameter = ""
+            }
+            create_row(0)
+        }
+        function onQuerySucceeded() {
+                createColumn(fields,index+1, max_length)
+            
+        }
+
+        function onQueryFailed() {
+        alert('Error!');
+        }
+        
+    }
+    
+    function create_row(index){
+        //"Excel_x005f_list"
+        if (index < data.length){
+            row_data = {"__metadata":{"type": internal_list_name} }
+            row_data["Title"] = data[index][0]
+            for (var i = 1; i < fields.length; i++){
+                row_data[fields[i]] = data[index][i]
+            }
+            $.ajax
+            ({
+                // _spPageContextInfo.webAbsoluteUrl - will give absolute URL of the site where you are running the code.
+                // You can replace this with other site URL where you want to apply the function
+                url: _spPageContextInfo.webAbsoluteUrl + "/_api/lists/GetByTitle('" + list_name + "')/Items",
+                type: "POST",
+                data: JSON.stringify(row_data),
+            headers:
+            {
+            "Accept": "application/json;odata=verbose",
+            "Content-Type": "application/json;odata=verbose",
+            "X-RequestDigest": $("#__REQUESTDIGEST").val(),
+            "X-HTTP-Method": "POST"
+            },
+                success: function () {
+                    create_row(index+1)
+                },
+                error: function () {
+                    alert("Failed to add to list.");
+                }
+            });
+        }
+    
+    }
+    function parse_data(row_string){
+        var regexp = /("{1,}([^"]+)"{1,}(,|\n)*|(.*?)(,|$){1})/gm;
+
+        var matches2 = row_string.matchAll(regexp);
+
+        var row_data = []
+        for(var i = 0 ; i <fields.length; i++){
+            row_data.push(" ")
+        }
+        var count = 0;
+        for (const match of matches2){
+            if (match[0] != ""){
+
+                if (match[2] == null){
+                    row_data[count] = match[4]
+                    count +=1
+                }
+                
+                else if ((match[0].match(/"/g) || []).length >=3){
+                    row_data[count] = ('\"' + match[2] + '\"')
+                    count +=1
+                }
+                else{
+                    row_data[count] = match[2]
+                    count +=1
+                }   
+            }
+        }
+        return row_data
+    }
+    function get_listname(path){
+         //gets name of excel file
+        var name = path.matchAll(/\\([^\\]*)\./gm)
+        for (const n of name){
+            name = n
+
+        }
+
+        return name[1]
+
+    }
+    function get_internal(siteUrl, temp){
+    if (window.XMLHttpRequest)
+    {// code for IE7+, Firefox, Chrome, Opera, Safari
+        xmlhttp=new XMLHttpRequest();
+    }
+    else
+    {// code for IE6, IE5
+        xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+    }
+    xmlhttp.onreadystatechange=function()
+    {
+        if (xmlhttp.readyState==4 && xmlhttp.status==200)
+        {
+            var regexp = /<d:ListItemEntityTypeFullName>(.*?)<./gm;
+            var matches = xmlhttp.responseText.matchAll(regexp)
+            for(match of matches){
+               internal_list_name = match[1]
+            }
+        }
+    }
+    xmlhttp.open("GET", siteUrl, false );
+    xmlhttp.send(); 
+
+    }
+    function get_internal_field(siteUrl, temp, index){
+        var internal_list_name = ""
+        if (window.XMLHttpRequest)
+    {// code for IE7+, Firefox, Chrome, Opera, Safari
+        xmlhttp=new XMLHttpRequest();
+    }
+    else
+    {// code for IE6, IE5
+        xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+    }
+    xmlhttp.onreadystatechange=function()
+    {
+        if (xmlhttp.readyState==4 && xmlhttp.status==200)
+        {
+            temp2 = '<d:InternalName>' + '(' + temp+ '.*?)<.*?>'
+            var regexp = new RegExp(`${temp2}`, 'gm')
+            var matches = xmlhttp.responseText.matchAll(regexp)
+            for(match of matches){
+                internal_list_name = match[1]
+            }
+        }
+        fields[index] = internal_list_name
+    }
+    xmlhttp.open("GET", siteUrl, false );
+    xmlhttp.send();
+    }
+    
+    document.getElementById('inputfile')
+            .addEventListener('change', function() {
+              
+    var fr=new FileReader();
+    fr.onload=function(){
+        temp = fr.result
+        path = document.getElementById('inputfile').value
+        list_name = get_listname(path)
+
+        
+        data = []
+        var regexp = /("{1,}([^"]+)"{1,}(,|\n)*|(.*?)(,|$){1})/gm;
+        end = temp.search("\n")
+        header = temp.substring(0,end) + '\n';
+        const matches = header.matchAll(regexp);
+        for (const match of matches){
+            if (match[0] != ""){
+                if (match[2] == null && match[4] != "" && match[4] != null ){
+                    fields.push(match[4])
+                }
+                
+                else if (match[2] != "" && match[2] != null){
+                    fields.push(match[2])
+                }   
+            }
+        }
+        temp = temp.substring(end+1,)
+        test = temp.split('\n')
+        for(var i = 0 ; i < test.length - 1; i++){
+            data.push(parse_data(test[i]))
+        }
+        console.log(fields)
+       create_table(fields)
+        // for (const match of matches2){
+        //     if (match[0] != ""){
+
+        //         if (match[2] == null){
+        //             data.push(match[4])
+        //         }
+                
+        //         else if ((match[0].match(/"/g) || []).length >=3){
+        //             data.push('\"' + match[2] + '\"')
+        //         }
+        //         else{
+        //             data.push(match[2])
+        //         }   
+        //     }
+        // }
+        
+        //create_table(fields)
+        
+        // for (const match of matches) {
+        //     if (match[0] != ""){
+        //         if (match[2] == null){
+        //             table_output += "<td>" + match[4] + "</td>"
+        //             if (match[5] == ""){
+                    
+        //                 table_output += "</tr>" + "<tr>"
+        //         }
+        //         }
+                
+        //         else{
+        //             table_output += "<td>" + match[2] + "</td>"
+        //             if (match[3] == null){
+                    
+        //                 table_output += "</tr>"+ "<tr>"
+        //         }
+        //     }
+
+                
+        //     }
+            
+        // }
+
+
+        }
+        fr.readAsText(this.files[0]);
+        })
+   
+
+// var client = new XMLHttpRequest();
+// client.open('GET', '/foo.txt');
+// client.onreadystatechange = function() {
+//   alert(client.responseText);
+// }
+
+</script>
+
+</html
+
